@@ -1,0 +1,15 @@
+schema_version = 1
+
+[paths]
+data_dir = "../data"
+traces_dir = "../data/traces"
+artifacts_dir = "../artifacts"
+
+[memory]
+ram_capacity = "16 GiB"
+vram_capacity = "0 B"
+safety_margin = "512 MiB"
+
+[logging]
+level = "INFO"
+format = "text"
