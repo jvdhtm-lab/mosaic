@@ -29,6 +29,10 @@ class ComponentRegistry(Protocol):
         """Return all registered component metadata."""
         ...
 
+    def verify_component(self, component_id: ComponentId) -> None:
+        """Verify stored content for a component or raise ``ContentVerificationError``."""
+        ...
+
     def register_cluster(self, cluster: ClusterManifest) -> None:
         """Register a cluster that references known components."""
         ...

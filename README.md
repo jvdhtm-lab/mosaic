@@ -10,10 +10,13 @@ project and does not train a small model to reproduce the large model's answers.
 
 ## Status
 
-Phase 1 is implemented: package foundation, typed contracts, subsystem
+Phase 2 is implemented: canonical JSON and SHA-256 content verification, a
+SQLite registry with append-only manifest revisions, dependency validation, and
+a deterministic component-residency simulator with explicit RAM/VRAM/disk
+budgets. Phase 1 provides the package foundation, typed contracts, subsystem
 protocols, configuration, logging, error taxonomy, documentation, and tests.
-The registry, simulator, clustering engine, trainable controller, memory
-manager, and real runtime adapter are not implemented yet.
+The clustering engine, trainable controller, memory manager, and real runtime
+adapter are not implemented yet.
 
 ## Scope and constraints
 
@@ -21,12 +24,17 @@ manager, and real runtime adapter are not implemented yet.
   experts. Mosaic does not pretend that arbitrary tensor groups can be removed
   from a dense transformer without breaking inference.
 - Simulation is the first execution environment. Real hardware measurements and
-  simulated measurements must remain clearly separated.
-- Phase 1 has no model downloads, no GPU requirement, and no runtime inference.
+  simulated measurements must remain clearly separated. Simulator results carry
+  `simulated = true`.
+- Phases 1–2 have no model downloads, no GPU requirement, and no runtime
+  inference.
 - Memory quantities are represented internally as non-negative integers of
   bytes. External configuration accepts explicit units such as `"512 MiB"`.
 - Contracts are immutable, reject unknown fields, and distinguish logical
   component identity from the SHA-256 content hash.
+- Simulated content stores descriptors with a logical `size_bytes`; verification
+  checks the descriptor hash, format, seed, and logical size rather than
+  pretending that descriptor files are model weights.
 - Missing trace measurements are represented as `None`; they are never silently
   converted to zero. An observed empty activation set is an empty tuple.
 
@@ -105,15 +113,44 @@ mosaic/
 │   ├── cli/              # Command-line entry point
 │   ├── contracts/        # Immutable data contracts
 │   ├── interfaces/       # Runtime-checkable subsystem protocols
+│   ├── registry/         # SQLite registry and dependency ordering
+│   ├── simulator/        # Deterministic residency simulator
 │   ├── config.py         # Configuration loading and validation
 │   ├── errors.py         # Domain exception taxonomy
 │   ├── logging.py        # Text and JSON structured logging
+│   ├── serialization.py  # Canonical JSON and SHA-256 hashing
+│   ├── storage.py        # Content verification and simulated payloads
 │   ├── units.py          # Explicit byte-size parsing
 │   └── __main__.py       # python -m mosaic
 └── tests/
     ├── integration/
     └── unit/
 ```
+
+## Registry and simulator
+
+```python
+from mosaic.registry import SQLiteRegistry
+from mosaic.simulator import Simulator, SimulatorConfig
+
+with SQLiteRegistry("data/registry.sqlite3") as registry:
+    registry.register_component(metadata)
+    registry.verify_component(metadata.component_id)
+
+simulator = Simulator(SimulatorConfig(ram_capacity=16 * 1024**3, vram_capacity=8 * 1024**3))
+simulator.register_component(metadata)
+result = simulator.load_component(metadata.component_id)
+assert result.simulated
+```
+
+The registry rejects duplicate identities, missing dependencies, dependency
+cycles, unregistered cluster members, and content that fails verification. Every
+registration and update is recorded as an append-only manifest revision.
+
+The simulator enforces capacity minus safety margin, loads dependencies before
+dependents, protects in-use components from eviction, and records cache, prefetch,
+eviction, and byte-transfer counters. It never auto-evicts: callers must choose
+victims explicitly, which keeps memory-policy experiments observable.
 
 ## Development checks
 

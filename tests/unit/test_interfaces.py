@@ -44,6 +44,9 @@ class FakeRegistry:
     def list_components(self) -> tuple[ComponentMetadata, ...]:
         return tuple(self.components.values())
 
+    def verify_component(self, component_id: str) -> None:
+        return None
+
     def register_cluster(self, cluster: ClusterManifest) -> None:
         self.clusters[cluster.cluster_id] = cluster
 

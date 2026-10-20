@@ -103,19 +103,73 @@ Phase 2 verifies declared hashes against stored content before registration or
 loading.
 
 **Consequences:** Renaming or relocating a component does not change logical
-routing identity, while content changes are detectable. Verification is not yet
-implemented in Phase 1.
+routing identity, while content changes are detectable. Content verification is
+implemented in `mosaic.storage` and exercised by the registry and simulator.
 
-## ADR-008: No nested Git repository initialized
+## ADR-008: Standalone repository for Mosaic
 
-**Status:** Proposed
+**Status:** Accepted
 
-**Context:** `mosaic` currently sits inside the existing `python_apps` repository
-worktree. The project prompt assumes an empty repository named `mosaic`.
+**Context:** `mosaic` originally sat inside the existing `python_apps` repository
+worktree, while the project prompt assumes an empty repository named `mosaic`.
 
-**Decision:** Do not create a nested `.git` directory during Phase 1. Keep source
-changes in the existing worktree until the repository layout is confirmed.
+**Decision:** Initialize a standalone Git repository inside `mosaic` after Phase
+1 and preserve the package layout. Phase 1 is committed there with a remote
+configured for the project repository.
 
-**Consequences:** Mosaic currently shares its parent repository's history. A
-standalone repository or workspace member can be established later without
-rewriting the package layout.
+**Consequences:** Mosaic has independent history from its former parent
+worktree. The parent repository no longer tracks the Mosaic package directly.
+
+## ADR-009: SQLite registry with append-only revisions
+
+**Status:** Accepted
+
+**Context:** Component and cluster manifests must be inspectable, durable, and
+reproducible across experiments. Losing prior revisions would make policy and
+dataset changes difficult to audit.
+
+**Decision:** Use SQLite with a current manifest row and an append-only revision
+table for both components and clusters. Store canonical JSON, a SHA-256 manifest
+hash, the contract schema version, the content hash, and an ISO-8601 UTC
+timestamp. Re-validate and hash-check manifests when reading them.
+
+**Consequences:** Registration and update history is auditable, and direct
+database tampering is detected on read. SQLite keeps the project dependency-free
+and suitable for single-process experiments. Concurrent multi-writer use and
+remote registries remain out of scope.
+
+## ADR-010: Simulated content descriptors, not fake weights
+
+**Status:** Accepted
+
+**Context:** Phases 2 and 3 must run on CPU-only machines without downloading
+model weights, but component identity and verification still need realistic
+content hashes and sizes.
+
+**Decision:** `SimulatedContentStore` writes canonical JSON descriptors
+containing a format marker, seed, and logical `size_bytes`. Verification checks
+the descriptor's SHA-256, format, seed, and logical size. The logical size drives
+simulator memory accounting, not the descriptor file size.
+
+**Consequences:** Tests and simulations are fast and deterministic without
+pretending that descriptor bytes are model weights. File and directory storage
+use real size and SHA-256 verification, so later runtime integration can switch
+storage kinds without changing registry semantics.
+
+## ADR-011: Explicit simulator lifecycle, no automatic eviction
+
+**Status:** Accepted
+
+**Context:** Memory-policy experiments need a controlled environment where the
+effect of a controller or baseline is attributable, not hidden by implicit
+eviction heuristics.
+
+**Decision:** The simulator enforces capacity after safety margins, loads
+dependencies before dependents, protects in-use components, and exposes
+deterministic counters and snapshots. It never evicts automatically. Callers may
+inspect `least_recently_used` but must issue eviction decisions explicitly. All
+results carry `simulated = True`.
+
+**Consequences:** Missing capacity or a bad policy produces a clear
+`ResourceBudgetError` instead of silently changing state. Experiments can compare
+policies without simulator-side eviction decisions contaminating the result.

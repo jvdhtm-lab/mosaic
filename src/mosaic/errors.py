@@ -72,8 +72,28 @@ class DuplicateComponentError(ComponentOperationError):
     """Raised when a component is registered more than once under one identity."""
 
 
+class ClusterNotFoundError(MosaicError):
+    """Raised when a requested cluster manifest is not registered."""
+
+    def __init__(self, message: str, *, cluster_id: str | None = None) -> None:
+        super().__init__(message)
+        self.cluster_id = cluster_id
+
+
+class DuplicateClusterError(MosaicError):
+    """Raised when a cluster is registered more than once under one identity."""
+
+    def __init__(self, message: str, *, cluster_id: str | None = None) -> None:
+        super().__init__(message)
+        self.cluster_id = cluster_id
+
+
 class DependencyError(ComponentOperationError):
     """Raised when component dependencies are missing, cyclic, or inconsistent."""
+
+
+class IncompatibleComponentError(ComponentOperationError):
+    """Raised when a component is incompatible with the target runtime."""
 
 
 class ComponentInUseError(ComponentOperationError):

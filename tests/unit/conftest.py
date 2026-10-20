@@ -18,15 +18,6 @@ CONTENT_HASH = "a" * 64
 
 
 @pytest.fixture
-def model_identity() -> ModelIdentity:
-    return ModelIdentity(
-        model_id="mistralai/Mixtral-8x7B-v0.1",
-        architecture="mixtral",
-        revision="main",
-    )
-
-
-@pytest.fixture
 def component_metadata(model_identity: ModelIdentity) -> ComponentMetadata:
     return ComponentMetadata(
         component_id="mixtral/layer.0/expert.0",
